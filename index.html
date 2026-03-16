@@ -1,1032 +1,179 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DARK WEB</title>
-  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet" />
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --bg: #0a0a0a;
-      --card: #111111;
-      --input: #0d0d0d;
-      --green: #00ff41;
-      --green-dim: #00802b;
-      --green-faint: rgba(0,255,65,0.08);
-      --border: rgba(0,255,65,0.35);
-      --border-bright: rgba(0,255,65,0.8);
-      --muted: rgba(0,255,65,0.45);
-      --red: #ff3333;
-    }
-    body {
-      background: var(--bg);
-      color: var(--green);
-      font-family: 'Share Tech Mono', monospace;
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
-    h1, h2, h3, .display { font-family: 'Orbitron', sans-serif; }
-    /* ====== SCANLINES ====== */
-    body::before {
-      content: '';
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.12) 2px, rgba(0,0,0,0.12) 4px);
-      pointer-events: none;
-      z-index: 9998;
-    }
-    /* ====== MATRIX CANVAS ====== */
-    #matrix-canvas {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      z-index: 0;
-      opacity: 0.28;
-    }
-    /* ====== SCAN LINE ====== */
-    .scan-line {
-      position: fixed;
-      left: 0; width: 100%; height: 3px;
-      background: linear-gradient(transparent, rgba(0,255,65,0.25), transparent);
-      z-index: 9997;
-      animation: scan 3s linear infinite;
-      pointer-events: none;
-    }
-    @keyframes scan { 0% { top: -10%; } 100% { top: 110%; } }
-    /* ====== PAGES ====== */
-    .page { display: none; position: relative; z-index: 10; min-height: 100vh; }
-    .page.active { display: block; }
-    /* ====== LOGIN PAGE ====== */
-    #page-login {
-      display: none;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-    }
-    #page-login.active { display: flex; }
-    .login-wrap { width: 100%; max-width: 420px; padding: 20px; }
-    .login-header { text-align: center; margin-bottom: 28px; }
-    .login-header .sys-tag {
-      font-size: 11px;
-      color: var(--muted);
-      letter-spacing: 4px;
-      margin-bottom: 8px;
-    }
-    .login-header h1 {
-      font-size: 36px;
-      font-weight: 900;
-      letter-spacing: 6px;
-      text-shadow: 0 0 10px var(--green), 0 0 25px var(--green), 0 0 50px var(--green);
-    }
-    .login-header .enc-tag {
-      font-size: 11px;
-      color: var(--muted);
-      letter-spacing: 4px;
-      margin-top: 6px;
-      animation: flicker 3s infinite;
-    }
-    .terminal-box {
-      border: 1px solid var(--border);
-      box-shadow: 0 0 15px rgba(0,255,65,0.15), 0 0 40px rgba(0,255,65,0.05), inset 0 0 10px rgba(0,255,65,0.03);
-      background: rgba(17,17,17,0.92);
-      backdrop-filter: blur(6px);
-      border-radius: 2px;
-      padding: 24px;
-      position: relative;
-    }
-    /* Corner decorations */
-    .terminal-box::before, .terminal-box::after,
-    .corner-br, .corner-bl {
-      content: '';
-      position: absolute;
-      width: 14px; height: 14px;
-    }
-    .terminal-box::before { top: -1px; left: -1px; border-top: 2px solid var(--green); border-left: 2px solid var(--green); }
-    .terminal-box::after  { top: -1px; right: -1px; border-top: 2px solid var(--green); border-right: 2px solid var(--green); }
-    .corner-bl { bottom: -1px; left: -1px; border-bottom: 2px solid var(--green); border-left: 2px solid var(--green); }
-    .corner-br { bottom: -1px; right: -1px; border-bottom: 2px solid var(--green); border-right: 2px solid var(--green); }
-    .prompt-line {
-      font-size: 12px;
-      color: var(--muted);
-      margin-bottom: 20px;
-    }
-    .prompt-line .root { color: var(--green); }
-    .cursor { animation: blink 1s infinite; }
-    @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
-    .field-group { margin-bottom: 16px; }
-    .field-label {
-      font-size: 11px;
-      color: var(--muted);
-      letter-spacing: 3px;
-      margin-bottom: 6px;
-      display: block;
-    }
-    .field-input-wrap {
-      display: flex;
-      align-items: center;
-      border: 1px solid var(--border);
-      background: var(--input);
-      border-radius: 2px;
-      padding: 9px 12px;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-    .field-input-wrap:focus-within {
-      border-color: var(--green);
-      box-shadow: 0 0 12px rgba(0,255,65,0.25);
-    }
-    .field-prefix { color: var(--green); font-size: 13px; margin-right: 8px; }
-    .field-input-wrap input {
-      background: transparent;
-      border: none;
-      outline: none;
-      color: var(--green);
-      font-family: 'Share Tech Mono', monospace;
-      font-size: 14px;
-      flex: 1;
-      width: 100%;
-    }
-    .field-input-wrap input::placeholder { color: rgba(0,255,65,0.25); }
-    .error-msg {
-      border: 1px solid rgba(255,51,51,0.35);
-      background: rgba(255,51,51,0.06);
-      color: var(--red);
-      font-size: 12px;
-      padding: 8px 12px;
-      border-radius: 2px;
-      margin-bottom: 16px;
-      animation: pulse-red 1.5s infinite;
-    }
-    @keyframes pulse-red { 0%,100%{opacity:1;} 50%{opacity:0.7;} }
-    .btn-auth {
-      width: 100%;
-      border: 1px solid var(--green);
-      background: var(--green-faint);
-      color: var(--green);
-      font-family: 'Orbitron', sans-serif;
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 4px;
-      padding: 13px;
-      border-radius: 2px;
-      cursor: pointer;
-      transition: background 0.2s, box-shadow 0.2s;
-      box-shadow: 0 0 8px rgba(0,255,65,0.2);
-      animation: pulse-green 2s infinite;
-    }
-    .btn-auth:hover { background: rgba(0,255,65,0.15); box-shadow: 0 0 20px rgba(0,255,65,0.4); }
-    @keyframes pulse-green { 0%,100%{box-shadow:0 0 5px rgba(0,255,65,0.2);} 50%{box-shadow:0 0 22px rgba(0,255,65,0.55);} }
-    /* LOADING STATE */
-    .loading-block { display: none; }
-    .loading-line {
-      font-size: 12px;
-      color: var(--muted);
-      margin-bottom: 10px;
-      opacity: 0;
-      transform: translateY(-8px);
-      transition: opacity 0.4s, transform 0.4s;
-    }
-    .loading-line.show { opacity: 1; transform: translateY(0); }
-    .loading-line.final { color: var(--green); font-size: 15px; font-weight: bold; text-shadow: 0 0 10px var(--green); }
-    .progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 14px; margin-bottom: 6px; }
-    .progress-track {
-      height: 8px;
-      background: rgba(0,255,65,0.1);
-      border: 1px solid var(--border);
-      border-radius: 2px;
-      overflow: hidden;
-    }
-    .progress-fill {
-      height: 100%;
-      background: var(--green);
-      width: 0%;
-      transition: width 0.5s ease;
-      box-shadow: 0 0 8px var(--green);
-    }
-    .login-footer {
-      text-align: center;
-      margin-top: 16px;
-      font-size: 11px;
-      color: rgba(0,255,65,0.25);
-      letter-spacing: 2px;
-    }
-    /* ====== DASHBOARD ====== */
-    .top-bar {
-      position: relative;
-      z-index: 10;
-      border-bottom: 1px solid var(--border);
-      background: rgba(17,17,17,0.85);
-      backdrop-filter: blur(6px);
-      padding: 14px 24px;
-    }
-    .top-bar-inner {
-      max-width: 1000px;
-      margin: 0 auto;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .top-bar h1 { font-size: 22px; font-weight: 900; letter-spacing: 5px; text-shadow: 0 0 10px var(--green), 0 0 20px var(--green); }
-    .top-bar .session { font-size: 11px; color: var(--muted); margin-top: 2px; }
-    .top-bar .session span { color: var(--green); }
-    .btn-logout {
-      display: flex; align-items: center; gap: 6px;
-      border: 1px solid var(--border);
-      background: transparent;
-      color: var(--muted);
-      font-family: 'Share Tech Mono', monospace;
-      font-size: 12px;
-      padding: 8px 14px;
-      border-radius: 2px;
-      cursor: pointer;
-      transition: all 0.2s;
-      letter-spacing: 2px;
-    }
-    .btn-logout:hover { color: var(--green); border-color: var(--green); }
-    .main-content { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
-    .section-subtitle { text-align: center; margin-bottom: 32px; }
-    .section-subtitle .sub-tag { font-size: 11px; color: var(--muted); letter-spacing: 5px; margin-bottom: 8px; }
-    .section-subtitle p { font-size: 13px; color: rgba(0,255,65,0.45); }
-    .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
-    .section-card {
-      border: 1px solid var(--border);
-      background: rgba(17,17,17,0.65);
-      backdrop-filter: blur(4px);
-      border-radius: 2px;
-      padding: 22px;
-      cursor: pointer;
-      transition: all 0.3s;
-      position: relative;
-      overflow: hidden;
-      animation: pulse-green 2s infinite;
-    }
-    .section-card:nth-child(2) { animation-delay: 0.6s; }
-    .section-card:nth-child(3) { animation-delay: 1.2s; }
-    .section-card:hover { border-color: var(--green); background: rgba(17,17,17,0.9); }
-    .card-corners::before, .card-corners::after,
-    .card-corners .cc-br, .card-corners .cc-bl {
-      content: '';
-      position: absolute;
-      width: 10px; height: 10px;
-      opacity: 0.5;
-      transition: opacity 0.3s;
-    }
-    .section-card:hover .card-corners::before,
-    .section-card:hover .card-corners::after,
-    .section-card:hover .card-corners .cc-br,
-    .section-card:hover .card-corners .cc-bl { opacity: 1; }
-    .card-corners::before { top:0; left:0; border-top:1px solid var(--green); border-left:1px solid var(--green); }
-    .card-corners::after  { top:0; right:0; border-top:1px solid var(--green); border-right:1px solid var(--green); }
-    .card-corners .cc-bl  { bottom:0; left:0; border-bottom:1px solid var(--green); border-left:1px solid var(--green); }
-    .card-corners .cc-br  { bottom:0; right:0; border-bottom:1px solid var(--green); border-right:1px solid var(--green); }
-    .card-file-tag { font-size: 10px; color: rgba(0,255,65,0.4); letter-spacing: 2px; margin-bottom: 14px; }
-    .card-icon-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-    .card-icon {
-      border: 1px solid var(--border);
-      background: var(--green-faint);
-      border-radius: 2px;
-      padding: 8px;
-      display: flex; align-items: center; justify-content: center;
-      transition: background 0.3s;
-    }
-    .section-card:hover .card-icon { background: rgba(0,255,65,0.15); }
-    .card-icon svg { width: 18px; height: 18px; stroke: var(--green); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-    .card-title { font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 2px; color: var(--green); }
-    .card-desc { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
-    .card-enter { font-size: 11px; color: rgba(0,255,65,0.45); letter-spacing: 2px; transition: color 0.2s; display: flex; align-items: center; gap: 6px; }
-    .section-card:hover .card-enter { color: var(--green); }
-    .card-enter .arrow { transition: transform 0.2s; }
-    .section-card:hover .card-enter .arrow { transform: translateX(4px); }
-    .status-bar {
-      margin-top: 48px;
-      border: 1px solid var(--border);
-      background: rgba(17,17,17,0.45);
-      border-radius: 2px;
-      padding: 14px 18px;
-      font-size: 11px;
-      color: rgba(0,255,65,0.45);
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-    }
-    .status-bar .s-on { color: var(--green); }
-    .status-bar .divider { opacity: 0.3; }
-    .status-dot { color: var(--green); animation: flicker 3s infinite; }
-    @keyframes flicker { 0%,100%{opacity:1;} 50%{opacity:0.8;} 75%{opacity:0.95;} }
-    /* ====== SECTION PAGE ====== */
-    .section-header {
-      position: relative; z-index: 10;
-      border-bottom: 1px solid var(--border);
-      background: rgba(17,17,17,0.85);
-      backdrop-filter: blur(6px);
-      padding: 14px 24px;
-    }
-    .section-header-inner {
-      max-width: 900px;
-      margin: 0 auto;
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    .section-header-left { display: flex; align-items: center; gap: 14px; }
-    .btn-back {
-      border: 1px solid var(--border);
-      background: transparent;
-      color: var(--muted);
-      cursor: pointer;
-      padding: 8px 10px;
-      border-radius: 2px;
-      display: flex; align-items: center;
-      transition: all 0.2s;
-    }
-    .btn-back:hover { color: var(--green); border-color: var(--green); }
-    .btn-back svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-    .section-title-block .s-tag { font-size: 10px; color: var(--muted); letter-spacing: 3px; margin-bottom: 2px; }
-    .section-title-block h2 { font-family: 'Orbitron', sans-serif; font-size: 18px; font-weight: 900; letter-spacing: 4px; text-shadow: 0 0 10px var(--green), 0 0 20px var(--green); }
-    .btn-add-post {
-      display: flex; align-items: center; gap: 8px;
-      border: 1px solid var(--green);
-      background: var(--green-faint);
-      color: var(--green);
-      font-family: 'Orbitron', sans-serif;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 3px;
-      padding: 10px 16px;
-      border-radius: 2px;
-      cursor: pointer;
-      transition: all 0.2s;
-      box-shadow: 0 0 8px rgba(0,255,65,0.2);
-      animation: pulse-green 2s infinite;
-    }
-    .btn-add-post:hover { background: rgba(0,255,65,0.15); box-shadow: 0 0 20px rgba(0,255,65,0.4); }
-    .btn-add-post svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; }
-    .posts-container { max-width: 900px; margin: 0 auto; padding: 32px 24px; }
-    .empty-state {
-      text-align: center;
-      padding: 80px 20px;
-    }
-    .empty-box {
-      border: 1px solid var(--border);
-      background: rgba(17,17,17,0.5);
-      border-radius: 2px;
-      padding: 40px;
-      max-width: 340px;
-      margin: 0 auto;
-    }
-    .empty-bracket { font-family: 'Orbitron', sans-serif; font-size: 36px; color: var(--green); margin-bottom: 14px; }
-    .empty-box p { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
-    .empty-box small { font-size: 11px; color: rgba(0,255,65,0.3); }
-    /* POST CARD */
-    .post-card {
-      border: 1px solid var(--border);
-      background: rgba(17,17,17,0.75);
-      backdrop-filter: blur(4px);
-      border-radius: 2px;
-      overflow: hidden;
-      margin-bottom: 32px;
-      box-shadow: 0 0 12px rgba(0,255,65,0.1), 0 0 30px rgba(0,255,65,0.04);
-      animation: fadeSlideIn 0.5s ease forwards;
-    }
-    @keyframes fadeSlideIn { from{opacity:0;transform:translateY(-10px);} to{opacity:1;transform:translateY(0);} }
-    .post-card-header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 10px 18px;
-      border-bottom: 1px solid var(--border);
-      background: rgba(0,255,65,0.04);
-    }
-    .post-num { font-size: 12px; color: var(--green); letter-spacing: 2px; }
-    .post-time { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
-    .post-time svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 2; }
-    .post-image-wrap { position: relative; background: var(--bg); }
-    .post-image-wrap img { width: 100%; max-height: 620px; object-fit: contain; display: block; }
-    .post-image-wrap::after {
-      content: '';
-      position: absolute;
-      bottom: 0; left: 0; right: 0;
-      height: 60px;
-      background: linear-gradient(transparent, rgba(10,10,10,0.3));
-      pointer-events: none;
-    }
-    .post-text-section { padding: 18px 20px; }
-    .post-text-label { font-size: 11px; color: var(--green); letter-spacing: 3px; margin-bottom: 8px; }
-    .post-text { font-size: 14px; color: var(--green); line-height: 1.7; white-space: pre-wrap; }
-    .post-footer {
-      padding: 10px 18px;
-      border-top: 1px solid rgba(0,255,65,0.12);
-      background: rgba(0,255,65,0.02);
-      font-size: 11px;
-      color: rgba(0,255,65,0.3);
-      letter-spacing: 2px;
-    }
-    /* ====== MODAL ====== */
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      z-index: 1000;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      background: rgba(10,10,10,0.82);
-      backdrop-filter: blur(4px);
-    }
-    .modal-overlay.open { display: flex; }
-    .modal-box {
-      width: 100%;
-      max-width: 500px;
-      border: 1px solid var(--border);
-      box-shadow: 0 0 20px rgba(0,255,65,0.2), 0 0 60px rgba(0,255,65,0.06);
-      background: var(--card);
-      border-radius: 2px;
-      position: relative;
-    }
-    .modal-box::before { content:''; position:absolute; top:-1px; left:-1px; width:14px; height:14px; border-top:2px solid var(--green); border-left:2px solid var(--green); }
-    .modal-box::after  { content:''; position:absolute; top:-1px; right:-1px; width:14px; height:14px; border-top:2px solid var(--green); border-right:2px solid var(--green); }
-    .modal-corner-bl  { position:absolute; bottom:-1px; left:-1px; width:14px; height:14px; border-bottom:2px solid var(--green); border-left:2px solid var(--green); }
-    .modal-corner-br  { position:absolute; bottom:-1px; right:-1px; width:14px; height:14px; border-bottom:2px solid var(--green); border-right:2px solid var(--green); }
-    .modal-header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border);
-    }
-    .modal-title-tag { font-size: 10px; color: var(--muted); letter-spacing: 3px; margin-bottom: 3px; }
-    .modal-title { font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 2px; }
-    .btn-close {
-      border: 1px solid var(--border);
-      background: transparent;
-      color: var(--muted);
-      cursor: pointer;
-      padding: 6px 8px;
-      border-radius: 2px;
-      display: flex; align-items: center;
-      transition: all 0.2s;
-    }
-    .btn-close:hover { color: var(--green); border-color: var(--green); }
-    .btn-close svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; }
-    .modal-body { padding: 20px; }
-    .upload-area {
-      border: 1px solid var(--border);
-      background: var(--input);
-      border-radius: 2px;
-      cursor: pointer;
-      transition: all 0.2s;
-      overflow: hidden;
-      margin-bottom: 16px;
-    }
-    .upload-area:hover, .upload-area.drag-over {
-      border-color: var(--green);
-      box-shadow: 0 0 10px rgba(0,255,65,0.2);
-    }
-    .upload-placeholder {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 32px;
-    }
-    .upload-icon {
-      border: 1px solid var(--border);
-      background: var(--green-faint);
-      border-radius: 2px;
-      padding: 10px;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .upload-icon svg { width: 22px; height: 22px; stroke: var(--green); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-    .upload-main-txt { font-size: 12px; color: var(--green); letter-spacing: 2px; }
-    .upload-sub-txt { font-size: 11px; color: rgba(0,255,65,0.35); }
-    .upload-preview-img { width: 100%; max-height: 220px; object-fit: contain; display: block; background: var(--bg); }
-    .upload-change-hint {
-      text-align: center;
-      padding: 8px;
-      font-size: 11px;
-      color: var(--muted);
-      border-top: 1px solid var(--border);
-      letter-spacing: 2px;
-    }
-    .modal-label { display: block; font-size: 11px; color: var(--muted); letter-spacing: 3px; margin-bottom: 6px; }
-    .modal-textarea {
-      width: 100%;
-      border: 1px solid var(--border);
-      background: var(--input);
-      border-radius: 2px;
-      padding: 10px 12px;
-      font-family: 'Share Tech Mono', monospace;
-      font-size: 13px;
-      color: var(--green);
-      resize: none;
-      outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
-      margin-bottom: 18px;
-    }
-    .modal-textarea::placeholder { color: rgba(0,255,65,0.25); }
-    .modal-textarea:focus { border-color: var(--green); box-shadow: 0 0 10px rgba(0,255,65,0.2); }
-    .modal-btns { display: flex; gap: 10px; }
-    .btn-cancel {
-      flex: 1;
-      border: 1px solid var(--border);
-      background: transparent;
-      color: var(--muted);
-      font-family: 'Share Tech Mono', monospace;
-      font-size: 12px;
-      letter-spacing: 2px;
-      padding: 11px;
-      border-radius: 2px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .btn-cancel:hover { color: var(--green); border-color: rgba(0,255,65,0.5); }
-    .btn-upload-post {
-      flex: 1;
-      border: 1px solid var(--green);
-      background: var(--green-faint);
-      color: var(--green);
-      font-family: 'Orbitron', sans-serif;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 3px;
-      padding: 11px;
-      border-radius: 2px;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex; align-items: center; justify-content: center; gap: 7px;
-    }
-    .btn-upload-post:hover:not(:disabled) { background: rgba(0,255,65,0.15); box-shadow: 0 0 15px rgba(0,255,65,0.3); }
-    .btn-upload-post:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn-upload-post svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
-    /* ====== RESPONSIVE ====== */
-    @media (max-width: 600px) {
-      .top-bar h1 { font-size: 18px; }
-      .cards-grid { grid-template-columns: 1fr; }
-      .section-title-block h2 { font-size: 14px; }
-      .btn-add-post span { display: none; }
-    }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>TikTok Transfer</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Outfit',sans-serif;background:#f7f7f7;color:#1a1a1a;-webkit-font-smoothing:antialiased;min-height:100vh}
+.app{display:flex;flex-direction:column;align-items:center;padding:32px 16px 64px}
+.header{display:flex;align-items:center;gap:12px;margin-bottom:32px;animation:floatUp .5s ease forwards}
+.header h1{font-size:1.5rem;font-weight:700;background:linear-gradient(to right,#1a1a1a,#737373);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.wrap{width:100%;max-width:420px}
+.card{background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:20px}
+.card+.card{margin-top:12px}
+.search-box{position:relative}
+.search-box input{width:100%;border:1px solid #e0e0e0;background:#efefef;border-radius:12px;padding:12px 16px 12px 42px;font-size:1rem;color:#1a1a1a;outline:none;font-family:inherit;transition:border .2s}
+.search-box input:focus{border-color:#FE2C55;box-shadow:0 0 0 3px rgba(254,44,85,.15)}
+.search-box input::placeholder{color:#737373}
+.search-box svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#737373}
+.suggestions{background:#fff;border:1px solid #e0e0e0;border-radius:12px;overflow:hidden;margin-top:12px}
+.sug-item{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;transition:background .15s}
+.sug-item:hover{background:#f5f5f5}
+.sug-item+.sug-item{border-top:1px solid #e0e0e0}
+.avatar{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;flex-shrink:0}
+.avatar-sm{width:40px;height:40px;font-size:.9rem}
+.avatar-md{width:56px;height:56px;font-size:1.1rem}
+.user-info .name{font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:4px}
+.user-info .stats{font-size:.75rem;color:#737373}
+.selected-user{display:flex;align-items:center;gap:12px}
+.clear-btn{background:none;border:none;color:#737373;cursor:pointer;padding:4px;transition:color .15s}
+.clear-btn:hover{color:#1a1a1a}
+label.field-label{font-size:.875rem;font-weight:600;color:#737373;display:block;margin-bottom:8px}
+.amount-wrap{position:relative;margin-bottom:16px}
+.amount-wrap .dollar{position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:1.1rem;font-weight:700;color:#1a1a1a}
+.amount-wrap input{width:100%;border:1px solid #e0e0e0;background:#efefef;border-radius:12px;padding:12px 16px 12px 36px;font-size:1.1rem;font-weight:600;color:#1a1a1a;outline:none;font-family:inherit;transition:border .2s}
+.amount-wrap input:focus{border-color:#FE2C55;box-shadow:0 0 0 3px rgba(254,44,85,.15)}
+.amount-wrap input::placeholder{color:#737373}
+.fee-row{display:flex;justify-content:between;font-size:.875rem;padding:4px 0}
+.fee-row span:first-child{color:#737373;flex:1}
+.fee-row span:last-child{font-weight:600;color:#1a1a1a}
+.fee-row .green{color:#16a34a}
+.divider{height:1px;background:#e0e0e0;margin:8px 0}
+.btn-tiktok{width:100%;padding:14px;border:none;border-radius:12px;background:#FE2C55;color:#fff;font-size:1.1rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;margin-top:12px}
+.btn-tiktok:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(254,44,85,.35)}
+.btn-tiktok:active{transform:translateY(0)}
+.btn-tiktok:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.back-btn{display:block;width:100%;text-align:center;background:none;border:none;color:#737373;font-size:.875rem;padding:12px;cursor:pointer;font-family:inherit;transition:color .15s;margin-top:4px}
+.back-btn:hover{color:#1a1a1a}
+.center{text-align:center}
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 0;gap:24px}
+.spinner{position:relative;width:80px;height:80px}
+.spinner .ring{position:absolute;inset:0;border-radius:50%;background:#FE2C55;opacity:.3;animation:pulseRing 1.2s cubic-bezier(.215,.61,.355,1) infinite}
+.spinner .core{position:absolute;inset:8px;border-radius:50%;background:#FE2C55;animation:spinLoader 1.5s linear infinite}
+.spinner .inner{position:absolute;inset:16px;border-radius:50%;background:#f7f7f7}
+.success-icon{width:80px;height:80px;border-radius:50%;background:#16a34a;display:flex;align-items:center;justify-content:center}
+.success-icon path{animation:checkDraw .5s ease forwards .3s}
+.mini-logo{display:inline-block;vertical-align:middle;margin-left:2px}
+.space-y>*+*{margin-top:12px}
+.animate-in{animation:floatUp .5s ease forwards}
+@keyframes floatUp{0%{opacity:0;transform:translateY(20px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes pulseRing{0%{transform:scale(.8);opacity:1}100%{transform:scale(2.2);opacity:0}}
+@keyframes spinLoader{to{transform:rotate(360deg)}}
+@keyframes checkDraw{0%{stroke-dashoffset:50}100%{stroke-dashoffset:0}}
+</style>
 </head>
 <body>
-<!-- Matrix canvas -->
-<canvas id="matrix-canvas"></canvas>
-<div class="scan-line"></div>
-<!-- ==================== LOGIN PAGE ==================== -->
-<div id="page-login" class="page active">
-  <div class="login-wrap">
-    <div class="login-header">
-      <div class="sys-tag">[SYSTEM BOOT v2.4.7]</div>
-      <h1>DARK WEB</h1>
-      <div class="enc-tag">▓▓▓ ENCRYPTED PORTAL ▓▓▓</div>
-    </div>
-    <div class="terminal-box">
-      <div class="corner-bl"></div>
-      <div class="corner-br"></div>
-      <!-- Normal form -->
-      <div id="login-form-block">
-        <div class="prompt-line">
-          <span class="root">root@darkweb</span>:~$ authenticate<span class="cursor">█</span>
-        </div>
-        <div class="field-group">
-          <label class="field-label">&gt; USERNAME:</label>
-          <div class="field-input-wrap">
-            <span class="field-prefix">$</span>
-            <input type="text" id="inp-user" placeholder="enter username..." autocomplete="off" />
-          </div>
-        </div>
-        <div class="field-group">
-          <label class="field-label">&gt; PASSWORD:</label>
-          <div class="field-input-wrap">
-            <span class="field-prefix">$</span>
-            <input type="password" id="inp-pass" placeholder="enter password..." autocomplete="off" />
-          </div>
-        </div>
-        <div id="login-error" class="error-msg" style="display:none;"></div>
-        <button class="btn-auth" onclick="doLogin()">[[ AUTHENTICATE ]]</button>
-      </div>
-      <!-- Loading state -->
-      <div id="login-loading" class="loading-block">
-        <div class="field-label" style="margin-bottom:14px;">&gt; SYSTEM AUTHENTICATION IN PROGRESS...</div>
-        <div id="load-line-0" class="loading-line">&gt; Initializing secure connection...</div>
-        <div id="load-line-1" class="loading-line">&gt; Bypassing firewall protocols...</div>
-        <div id="load-line-2" class="loading-line">&gt; Establishing encrypted tunnel...</div>
-        <div id="load-line-3" class="loading-line">&gt; Loading neural networks...</div>
-        <div id="load-line-4" class="loading-line">&gt; Decrypting data streams...</div>
-        <div id="load-line-5" class="loading-line final">&gt; ACCESS GRANTED</div>
-        <div class="progress-label">
-          <span>PROGRESS</span>
-          <span id="prog-pct" style="color:var(--green);">0%</span>
-        </div>
-        <div class="progress-track">
-          <div class="progress-fill" id="prog-fill"></div>
-        </div>
-      </div>
-    </div>
-    <div class="login-footer">[UNAUTHORIZED ACCESS IS STRICTLY PROHIBITED]</div>
-  </div>
-</div>
-<!-- ==================== DASHBOARD PAGE ==================== -->
-<div id="page-dashboard" class="page">
-  <header class="top-bar">
-    <div class="top-bar-inner">
-      <div>
-        <h1>DARK WEB</h1>
-        <div class="session"><span>root@darkweb</span>:~$ session active</div>
-      </div>
-      <button class="btn-logout" onclick="doLogout()">
-        <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        LOGOUT
-      </button>
-    </div>
-  </header>
-  <main class="main-content">
-    <div class="section-subtitle">
-      <div class="sub-tag">▓▓▓ SELECT PREDICTION MODULE ▓▓▓</div>
-      <p>&gt; Choose a section to view and manage predictions</p>
-    </div>
-    <div class="cards-grid">
-      <!-- Correct Score -->
-      <div class="section-card" onclick="openSection('correct-score')">
-        <div class="card-corners">
-          <div class="cc-bl"></div><div class="cc-br"></div>
-        </div>
-        <div class="card-file-tag">[PREDICTION.EXE]</div>
-        <div class="card-icon-row">
-          <div class="card-icon">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>
-          </div>
-          <div class="card-title">CORRECT SCORE</div>
-        </div>
-        <div class="card-desc">&gt; Exact match score predictions</div>
-        <div class="card-enter">ENTER MODULE <span class="arrow">&gt;&gt;</span></div>
-      </div>
-      <!-- Dark 50 -->
-      <div class="section-card" onclick="openSection('dark-50')">
-        <div class="card-corners">
-          <div class="cc-bl"></div><div class="cc-br"></div>
-        </div>
-        <div class="card-file-tag">[DARK_INTEL.DAT]</div>
-        <div class="card-icon-row">
-          <div class="card-icon">
-            <svg viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
-          </div>
-          <div class="card-title">DARK 50</div>
-        </div>
-        <div class="card-desc">&gt; Top 50 encrypted picks</div>
-        <div class="card-enter">ENTER MODULE <span class="arrow">&gt;&gt;</span></div>
-      </div>
-      <!-- Brazilian Fixed -->
-      <div class="section-card" onclick="openSection('brazilian-fixed')">
-        <div class="card-corners">
-          <div class="cc-bl"></div><div class="cc-br"></div>
-        </div>
-        <div class="card-file-tag">[BR_FIXED.SYS]</div>
-        <div class="card-icon-row">
-          <div class="card-icon">
-            <svg viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
-          </div>
-          <div class="card-title">BRAZILIAN FIXED</div>
-        </div>
-        <div class="card-desc">&gt; Brazilian league locked picks</div>
-        <div class="card-enter">ENTER MODULE <span class="arrow">&gt;&gt;</span></div>
-      </div>
-    </div>
-    <div class="status-bar">
-      <span class="s-on">STATUS:</span>
-      <span>ONLINE</span>
-      <span class="divider">|</span>
-      <span>ENCRYPTION: AES-256</span>
-      <span class="divider">|</span>
-      <span>TOR: ACTIVE</span>
-      <span class="divider">|</span>
-      <span class="status-dot">● SECURE</span>
-    </div>
-  </main>
-</div>
-<!-- ==================== SECTION PAGE ==================== -->
-<div id="page-section" class="page">
-  <header class="section-header">
-    <div class="section-header-inner">
-      <div class="section-header-left">
-        <button class="btn-back" onclick="goBack()">
-          <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-        <div class="section-title-block">
-          <div class="s-tag" id="section-file-tag"></div>
-          <h2 id="section-title"></h2>
-        </div>
-      </div>
-      <button class="btn-add-post" onclick="openModal()">
-        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        <span>ADD POST</span>
-      </button>
-    </div>
-  </header>
-  <div class="posts-container" id="posts-container">
-    <!-- posts injected here -->
-  </div>
-</div>
-<!-- ==================== ADD POST MODAL ==================== -->
-<div class="modal-overlay" id="modal-overlay" onclick="handleModalOverlayClick(event)">
-  <div class="modal-box" id="modal-box">
-    <div class="modal-corner-bl"></div>
-    <div class="modal-corner-br"></div>
-    <div class="modal-header">
-      <div>
-        <div class="modal-title-tag">&gt; NEW PREDICTION POST</div>
-        <div class="modal-title" id="modal-section-label"></div>
-      </div>
-      <button class="btn-close" onclick="closeModal()">
-        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div class="modal-body">
-      <label class="modal-label">&gt; UPLOAD POST IMAGE:</label>
-      <div
-        class="upload-area"
-        id="upload-area"
-        onclick="triggerFileInput()"
-        ondragover="handleDragOver(event)"
-        ondragleave="handleDragLeave(event)"
-        ondrop="handleDrop(event)"
-      >
-        <div class="upload-placeholder" id="upload-placeholder">
-          <div class="upload-icon">
-            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-          </div>
-          <div class="upload-main-txt">&gt; DRAG &amp; DROP IMAGE</div>
-          <div class="upload-sub-txt">or click to browse files</div>
-        </div>
-        <img src="" alt="Preview" class="upload-preview-img" id="img-preview" style="display:none;" />
-        <div class="upload-change-hint" id="upload-hint" style="display:none;">CLICK TO CHANGE IMAGE</div>
-      </div>
-      <input type="file" id="file-input" accept="image/*" style="display:none;" onchange="handleFileChange(event)" />
-      <label class="modal-label">&gt; PREDICTION TEXT:</label>
-      <textarea
-        class="modal-textarea"
-        id="post-text"
-        rows="4"
-        placeholder="> Enter match prediction details..."
-      ></textarea>
-      <div class="modal-btns">
-        <button class="btn-cancel" onclick="closeModal()">[CANCEL]</button>
-        <button class="btn-upload-post" id="btn-submit" onclick="submitPost()" disabled>
-          <svg viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
-          [[ UPLOAD POST ]]
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-<!-- ==================== JAVASCRIPT ==================== -->
+<div class="app" id="app"></div>
 <script>
-  // ======== MATRIX RAIN ========
-  (function() {
-    const canvas = document.getElementById('matrix-canvas');
-    const ctx = canvas.getContext('2d');
-    const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノ01010110100110DARKWEB><[]{}()';
-    const fs = 14;
-    let drops = [];
-    function resize() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      drops = Array(Math.floor(canvas.width / fs)).fill(1);
+const USERNAMES=["charlidamelio","addisonre","bellapoarch","khaborekhy","zachking","spencerx","lorengray","babyariel","gilmhercroes","raborekhy","jamescharles","dixiedamelio","avanigregg","chasehudson","noahbeck","larrayeeee","tonilopez","bfrxnkk","thehypehouse","ondreaz","domelipa","maborekhy","ameliezilber","riyaz.14","jannat_zubair29","naborekhy","faaborekhy","nagmanisha","avneetkaur_13","aaborekhy","nishaguragain","bbaborekhy","arianagrande","therock","kyliejenner","selenagomez","taylorswift","justinbieber","ddamiliooo","iaborekhy","kaaborekhy","maborekhy2","kingbach","loren","jaborekhy","willsmith","lizzo","jasonderulo","dualipa","billieeilish","postmalone","snoopdogg","shakira","nickiminaj","champagnepapi","cardib","badgalriri","travisscott","kaborekhy2","eminem","justintimberlake","kevinhart4real","theellenshow","fallontonight","kimkardashian","kyliecosmetics","gigihadid","zayn","harrystyles","niallhoran","liampayne","louistomlinson","shawnmendes","camilacabello","halsey","khalid","sza","danielcaesar","frankocean","thewknd","wizkid","burnaboygram","davido","taborekhy","paborekhy","chaborekhy","raborekhy2","saborekhy","daborekhy","waborekhy","eaborekhy","qaborekhy","zaborekhy","xaborekhy","vaborekhy","uaborekhy","yaborekhy","oaborekhy","lababrekhyy","mababrekhyy","johndoe","janedoe","cooluser123","tiktoker99","viralstar","dancequeen","comedyking","prankster","foodlover","travelbug","fitnessguru","techgeek","musiclover","artsy_soul","bookworm","gamerlife","fashionista","petlover","naturelover","sportsfan","movielover","diyqueen","beautyboss","skaterdude","yogagirl","cheflife","djlife","photographer","filmmaker","animator","singer","rapper","dancer","actor","model","influencer","vlogger","streamer","podcaster","blogger","reviewer","tutor","mentor","coach","trainer","healer","artist","painter","sculptor","musician","guitarist","pianist","drummer","violinist","cellist","flutist","saxplayer","trumpeter","producer","songwriter","lyricist","composer","conductor","arranger","mixer","engineer","designer","architect","developer","coder","hacker","maker","builder","creator","innovator","inventor","pioneer","explorer","adventurer","traveler","wanderer","nomad","backpacker","camper","hiker","climber","surfer","skater","snowboarder","skier","cyclist","runner","swimmer","diver","sailor","pilot","astronaut","scientist","researcher","professor","teacher","student","learner","reader","writer","author","poet","playwright","screenwriter","journalist","reporter","editor","publisher","librarian","archivist","curator","collector","dealer","broker","trader","investor","banker","accountant","auditor","analyst","consultant","advisor","strategist","planner","manager","director","executive","officer","chief","president","chairman","founder","cofounder","partner","associate","assistant","intern","volunteer","activist","advocate","campaigner","organizer","coordinator","facilitator","mediator","negotiator","diplomat","ambassador","envoy","delegate","representative","senator","governor","mayor","council","commissioner","inspector","detective","officer123","agent","spy","ninja","samurai","warrior","knight","prince","princess","queen","king"];
+const COLORS=["#FE2C55","#25F4EE","#5B5EA6","#9B59B6","#E67E22","#1ABC9C","#E74C3C","#3498DB","#F39C12","#2ECC71","#8E44AD","#D35400","#16A085","#C0392B","#2980B9"];
+const FEE=1;
+function seed(s){let h=0;for(let i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0}return Math.abs(h)}
+function genUser(u){const s=seed(u);const f=((s%900)+100)+"."+(s%10)+"K";const fw=((s%50)+5)+"."+(s%10)+"K";return{username:u,followers:f,following:fw,color:COLORS[s%COLORS.length]}}
+function searchUsers(q){if(!q||q.length<1)return[];const low=q.toLowerCase();return USERNAMES.filter(u=>u.includes(low)).slice(0,6).map(genUser)}
+const LOGO_BW='<svg width="28" height="28" viewBox="0 0 48 48" fill="none"><path d="M33.3 8.1C31.8 6.4 31 4.2 31 2h-7.2v29.6c0 3-2.5 5.4-5.5 5.4s-5.5-2.4-5.5-5.4 2.5-5.4 5.5-5.4c.6 0 1.1.1 1.6.3v-7.3c-.5-.1-1.1-.1-1.6-.1-7 0-12.7 5.7-12.7 12.6S11.3 44.3 18.3 44.3s12.7-5.7 12.7-12.6V16.5c2.7 1.9 5.9 3 9.4 3V12.3c-3.4 0-6.4-1.7-7.1-4.2z" fill="#1a1a1a"/></svg>';
+const MINI='<svg class="mini-logo" width="14" height="14" viewBox="0 0 48 48"><path d="M33.3 8.1C31.8 6.4 31 4.2 31 2h-7.2v29.6c0 3-2.5 5.4-5.5 5.4s-5.5-2.4-5.5-5.4 2.5-5.4 5.5-5.4c.6 0 1.1.1 1.6.3v-7.3c-.5-.1-1.1-.1-1.6-.1-7 0-12.7 5.7-12.7 12.6S11.3 44.3 18.3 44.3s12.7-5.7 12.7-12.6V16.5c2.7 1.9 5.9 3 9.4 3V12.3c-3.4 0-6.4-1.7-7.1-4.2z" fill="#1a1a1a"/></svg>';
+const SEARCH_ICON='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
+
+let state={stage:"main",user:null,query:"",amount:"",tx:null};
+const $=id=>document.getElementById(id);
+const app=document.getElementById("app");
+
+function avatar(u,size){const c=size==="sm"?"avatar-sm":"avatar-md";return`<div class="avatar ${c}" style="background:${u.color}">${u.username.charAt(0).toUpperCase()}</div>`}
+function fmtTime(d){return d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}
+
+function render(){
+const s=state;
+let h="";
+h+=`<div class="header">${LOGO_BW}<h1>Payment</h1></div><div class="wrap">`;
+
+if(s.stage==="main"){
+h+='<div class="space-y animate-in">';
+if(s.user){
+h+=`<div class="card"><div class="selected-user">${avatar(s.user,"md")}<div style="flex:1;min-width:0"><div class="user-info"><div class="name">@${s.user.username}${MINI}</div><div class="stats">${s.user.followers} followers · ${s.user.following} following</div></div></div><button class="clear-btn" onclick="clearUser()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></div></div>`;
+}else{
+h+=`<div class="search-box">${SEARCH_ICON}<input type="text" placeholder="Search TikTok username..." value="${s.query}" oninput="onSearch(this.value)" autofocus/></div><div class="suggestions-container">`;
+const sug=searchUsers(s.query);
+if(sug.length){
+h+='<div class="suggestions">';
+sug.forEach(u=>{h+=`<div class="sug-item" onclick="selectUser('${u.username}')">${avatar(u,"sm")}<div class="user-info"><div class="name">@${u.username}${MINI}</div><div class="stats">${u.followers} followers · ${u.following} following</div></div></div>`});
+h+='</div>';
+}
+h+='</div>';}
+const amt=parseFloat(s.amount)||0;const recv=Math.max(0,amt-FEE);const canSend=s.user&&amt>FEE;
+h+=`<div class="card"><label class="field-label">Enter Amount (USD)</label><div class="amount-wrap"><span class="dollar">$</span><input type="number" placeholder="0.00" value="${s.amount}" oninput="onAmount(this.value)" min="0" step="0.01"/></div><div class="fee-display">`;
+if(amt>0){
+h+=`<div class="fee-row"><span>Fee</span><span>$1.00</span></div><div class="divider"></div><div class="fee-row"><span>Received amount</span><span class="green">$${recv.toFixed(2)}</span></div>`;
+}
+h+=`</div><button class="btn-tiktok" ${canSend?"":"disabled"} onclick="startTransfer()">Transfer</button></div></div>`;
+}
+
+if(s.stage==="confirm"&&s.user&&s.tx){
+const u=s.user,t=s.tx;
+h+=`<div class="space-y animate-in"><h2 class="center" style="font-size:1.25rem;font-weight:700">Confirm Transfer</h2><div class="card"><div class="selected-user" style="padding-bottom:12px;border-bottom:1px solid #e0e0e0">${avatar(u,"md")}<div class="user-info"><div class="name">@${u.username}${MINI}</div><div class="stats">${u.followers} followers</div></div></div><div class="fee-row" style="margin-top:12px"><span>Amount</span><span>USD $${t.sent}</span></div><div class="divider"></div><div class="fee-row"><span>Fee</span><span>USD $1.00</span></div><div class="divider"></div><div class="fee-row"><span>Received amount</span><span class="green">USD $${t.recv}</span></div><div class="divider"></div><div class="fee-row"><span>Arrival time</span><span>~30 min (${t.arrival})</span></div></div><button class="btn-tiktok" onclick="confirmSend()">Confirm & Send</button><button class="back-btn" onclick="goBack()">← Back</button></div>`;
+}
+
+if(s.stage==="loading"){
+h+=`<div class="loading animate-in"><div class="spinner"><div class="ring"></div><div class="core"></div><div class="inner"></div></div><p style="color:#737373;font-weight:600">Processing transfer...</p></div>`;
+}
+
+if(s.stage==="success"&&s.user&&s.tx){
+const u=s.user,t=s.tx;
+h+=`<div class="space-y animate-in"><div style="display:flex;flex-direction:column;align-items:center;padding:24px 0;gap:16px"><div class="success-icon"><svg width="40" height="40" viewBox="0 0 40 40" fill="none"><path d="M10 20L17 27L30 13" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="50" stroke-dashoffset="0"/></svg></div><p style="font-size:1.25rem;font-weight:700">USD $${t.sent} sent successfully</p></div><div class="card">`;
+const rows=[["Sent to",`@${u.username} ${MINI}`],["Amount",`USD $${t.sent}`],["Fee","USD $1.00"],["Received",`<span class="green">USD $${t.recv}</span>`],["Status",`<span class="green">✓ Completed</span>`],["Time",t.time],["Arrival",`~30 min (${t.arrival})`]];
+rows.forEach((r,i)=>{h+=`<div class="fee-row"><span>${r[0]}</span><span style="font-weight:600">${r[1]}</span></div>`;if(i<rows.length-1)h+='<div class="divider"></div>'});
+h+=`</div><button class="btn-tiktok" onclick="resetAll()">Send USD Again</button></div>`;
+}
+
+h+='</div>';
+app.innerHTML=h;
+}
+
+function onSearch(v){state.query=v;updateSuggestions()}
+function updateSuggestions(){
+  const sug=searchUsers(state.query);
+  const suggestionsContainer=document.querySelector('.suggestions-container');
+  if(suggestionsContainer){
+    if(sug.length){
+      let html='<div class="suggestions">';
+      sug.forEach(u=>{html+=`<div class="sug-item" onclick="selectUser('${u.username}')">${avatar(u,"sm")}<div class="user-info"><div class="name">@${u.username}${MINI}</div><div class="stats">${u.followers} followers · ${u.following} following</div></div></div>`});
+      html+='</div>';
+      suggestionsContainer.innerHTML=html;
+    }else{
+      suggestionsContainer.innerHTML='';
     }
-    resize();
-    window.addEventListener('resize', resize);
-    setInterval(function() {
-      ctx.fillStyle = 'rgba(0,0,0,0.05)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.font = fs + "px 'Share Tech Mono', monospace";
-      for (let i = 0; i < drops.length; i++) {
-        const c = chars[Math.floor(Math.random() * chars.length)];
-        ctx.fillStyle = Math.random() > 0.98 ? '#ffffff' : '#00ff41';
-        ctx.globalAlpha = Math.random() * 0.5 + 0.5;
-        ctx.fillText(c, i * fs, drops[i] * fs);
-        if (drops[i] * fs > canvas.height && Math.random() > 0.975) drops[i] = 0;
-        drops[i]++;
-      }
-      ctx.globalAlpha = 1;
-    }, 50);
-  })();
-  // ======== ROUTING ========
-  const PAGES = ['login', 'dashboard', 'section'];
-  function showPage(name) {
-    PAGES.forEach(p => {
-      const el = document.getElementById('page-' + p);
-      if (el) el.classList.toggle('active', p === name);
-    });
   }
-  // ======== AUTH CHECK ========
-  window.addEventListener('DOMContentLoaded', function() {
-    const inp = document.getElementById('inp-user');
-    const inpP = document.getElementById('inp-pass');
-    if (inp) inp.addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
-    if (inpP) inpP.addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
-    if (localStorage.getItem('darkweb_auth') === 'authenticated') {
-      showPage('dashboard');
-    } else {
-      showPage('login');
+}
+function onAmount(v){state.amount=v;updateFeeDisplay()}
+function updateFeeDisplay(){
+  const amt=parseFloat(state.amount)||0;
+  const recv=Math.max(0,amt-FEE);
+  const feeDisplay=document.querySelector('.fee-display');
+  if(feeDisplay){
+    if(amt>0){
+      feeDisplay.innerHTML=`<div class="fee-row"><span>Fee</span><span>$1.00</span></div><div class="divider"></div><div class="fee-row"><span>Received amount</span><span class="green">$${recv.toFixed(2)}</span></div>`;
+    }else{
+      feeDisplay.innerHTML='';
     }
-  });
-  // ======== LOGIN ========
-  const CORRECT_USER = 'goat father';
-  const CORRECT_PASS = '698480560';
-  const HACK_LINES = [
-    '> Initializing secure connection...',
-    '> Bypassing firewall protocols...',
-    '> Establishing encrypted tunnel...',
-    '> Loading neural networks...',
-    '> Decrypting data streams...',
-    '> ACCESS GRANTED'
-  ];
-  function doLogin() {
-    const user = document.getElementById('inp-user').value.trim();
-    const pass = document.getElementById('inp-pass').value.trim();
-    const errEl = document.getElementById('login-error');
-    if (!user || !pass) {
-      errEl.textContent = '> ERROR: CREDENTIALS REQUIRED';
-      errEl.style.display = 'block';
-      return;
-    }
-    if (user !== CORRECT_USER || pass !== CORRECT_PASS) {
-      errEl.textContent = '> ACCESS DENIED: INVALID CREDENTIALS';
-      errEl.style.display = 'block';
-      return;
-    }
-    errEl.style.display = 'none';
-    document.getElementById('login-form-block').style.display = 'none';
-    const loadBlock = document.getElementById('login-loading');
-    loadBlock.style.display = 'block';
-    let step = 0;
-    function nextStep() {
-      if (step >= HACK_LINES.length) {
-        setTimeout(function() {
-          localStorage.setItem('darkweb_auth', 'authenticated');
-          showPage('dashboard');
-          // Reset login for next time
-          document.getElementById('login-form-block').style.display = 'block';
-          loadBlock.style.display = 'none';
-          for (let i = 0; i < HACK_LINES.length; i++) {
-            document.getElementById('load-line-' + i).classList.remove('show');
-          }
-          document.getElementById('prog-fill').style.width = '0%';
-          document.getElementById('prog-pct').textContent = '0%';
-          document.getElementById('inp-user').value = '';
-          document.getElementById('inp-pass').value = '';
-        }, 700);
-        return;
-      }
-      document.getElementById('load-line-' + step).classList.add('show');
-      const pct = Math.round(((step + 1) / HACK_LINES.length) * 100);
-      document.getElementById('prog-fill').style.width = pct + '%';
-      document.getElementById('prog-pct').textContent = pct + '%';
-      step++;
-      setTimeout(nextStep, 500);
-    }
-    nextStep();
   }
-  // ======== LOGOUT ========
-  function doLogout() {
-    localStorage.removeItem('darkweb_auth');
-    showPage('login');
-  }
-  // ======== SECTIONS ========
-  const SECTION_META = {
-    'correct-score': { label: 'CORRECT SCORE', tag: '[PREDICTION.EXE]' },
-    'dark-50':       { label: 'DARK 50',        tag: '[DARK_INTEL.DAT]' },
-    'brazilian-fixed': { label: 'BRAZILIAN FIXED', tag: '[BR_FIXED.SYS]' }
-  };
-  let currentSection = null;
-  function openSection(id) {
-    currentSection = id;
-    const meta = SECTION_META[id];
-    document.getElementById('section-file-tag').textContent = meta.tag;
-    document.getElementById('section-title').textContent = meta.label;
-    renderPosts();
-    showPage('section');
-  }
-  function goBack() {
-    showPage('dashboard');
-    currentSection = null;
-  }
-  // ======== POSTS ========
-  function getPosts() {
-    const raw = localStorage.getItem('darkweb_posts_' + currentSection);
-    return raw ? JSON.parse(raw) : [];
-  }
-  function savePosts(posts) {
-    localStorage.setItem('darkweb_posts_' + currentSection, JSON.stringify(posts));
-  }
-  function formatTime(ts) {
-    const d = new Date(ts);
-    return d.toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
-  }
-  function renderPosts() {
-    const posts = getPosts();
-    const container = document.getElementById('posts-container');
-    if (posts.length === 0) {
-      container.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-box">
-            <div class="empty-bracket">[ ]</div>
-            <p>&gt; NO PREDICTIONS UPLOADED</p>
-            <small>Tap the ADD POST button to upload your first prediction</small>
-          </div>
-        </div>`;
-      return;
-    }
-    container.innerHTML = posts.map(function(post, idx) {
-      const num = posts.length - idx;
-      return `
-        <div class="post-card" style="animation-delay:${idx * 0.1}s">
-          <div class="post-card-header">
-            <div class="post-num">POST #${num} &nbsp;|&nbsp; ${SECTION_META[currentSection].label}</div>
-            <div class="post-time">
-              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              ${formatTime(post.timestamp)}
-            </div>
-          </div>
-          <div class="post-image-wrap">
-            <img src="${post.image}" alt="Prediction" />
-          </div>
-          <div class="post-text-section">
-            <div class="post-text-label">&gt; PREDICTION:</div>
-            <div class="post-text">${escapeHtml(post.text)}</div>
-          </div>
-          <div class="post-footer">[ENCRYPTED] &nbsp;•&nbsp; [VERIFIED] &nbsp;•&nbsp; [DARKWEB.PREDICTIONS]</div>
-        </div>`;
-    }).join('');
-  }
-  function escapeHtml(str) {
-    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-  // ======== MODAL ========
-  let pendingImage = null;
-  function openModal() {
-    pendingImage = null;
-    document.getElementById('img-preview').style.display = 'none';
-    document.getElementById('upload-placeholder').style.display = 'flex';
-    document.getElementById('upload-hint').style.display = 'none';
-    document.getElementById('post-text').value = '';
-    document.getElementById('btn-submit').disabled = true;
-    document.getElementById('modal-section-label').textContent = SECTION_META[currentSection].label;
-    document.getElementById('modal-overlay').classList.add('open');
-  }
-  function closeModal() {
-    document.getElementById('modal-overlay').classList.remove('open');
-    document.getElementById('file-input').value = '';
-  }
-  function handleModalOverlayClick(e) {
-    if (e.target === document.getElementById('modal-overlay')) closeModal();
-  }
-  function triggerFileInput() {
-    document.getElementById('file-input').click();
-  }
-  function handleDragOver(e) {
-    e.preventDefault();
-    document.getElementById('upload-area').classList.add('drag-over');
-  }
-  function handleDragLeave(e) {
-    document.getElementById('upload-area').classList.remove('drag-over');
-  }
-  function handleDrop(e) {
-    e.preventDefault();
-    document.getElementById('upload-area').classList.remove('drag-over');
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) loadImageFile(file);
-  }
-  function handleFileChange(e) {
-    const file = e.target.files[0];
-    if (file) loadImageFile(file);
-  }
-  function loadImageFile(file) {
-    const reader = new FileReader();
-    reader.onload = function(ev) {
-      pendingImage = ev.target.result;
-      document.getElementById('img-preview').src = pendingImage;
-      document.getElementById('img-preview').style.display = 'block';
-      document.getElementById('upload-placeholder').style.display = 'none';
-      document.getElementById('upload-hint').style.display = 'block';
-      checkSubmitReady();
-    };
-    reader.readAsDataURL(file);
-  }
-  document.addEventListener('DOMContentLoaded', function() {
-    const ta = document.getElementById('post-text');
-    if (ta) ta.addEventListener('input', checkSubmitReady);
-  });
-  function checkSubmitReady() {
-    const text = document.getElementById('post-text').value.trim();
-    document.getElementById('btn-submit').disabled = !(pendingImage && text);
-  }
-  function submitPost() {
-    const text = document.getElementById('post-text').value.trim();
-    if (!pendingImage || !text) return;
-    const post = { id: Date.now().toString(), image: pendingImage, text: text, timestamp: Date.now() };
-    const posts = getPosts();
-    posts.unshift(post);
-    savePosts(posts);
-    closeModal();
-    renderPosts();
-  }
+}
+function selectUser(u){state.user=genUser(u);state.query="";render()}
+function clearUser(){state.user=null;state.amount="";render()}
+function startTransfer(){
+if(!state.user)return;
+const amt=parseFloat(state.amount)||0;if(amt<=FEE)return;
+const now=new Date();const arr=new Date(now.getTime()+30*60*1000);
+state.tx={sent:amt.toFixed(2),recv:Math.max(0,amt-FEE).toFixed(2),time:fmtTime(now),arrival:fmtTime(arr)};
+state.stage="confirm";render();
+}
+function confirmSend(){state.stage="loading";render();setTimeout(()=>{state.stage="success";render()},2000)}
+function goBack(){state.stage="main";render()}
+function resetAll(){state={stage:"main",user:null,query:"",amount:"",tx:null};render()}
+
+render();
 </script>
 </body>
 </html>
